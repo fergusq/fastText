@@ -1,0 +1,59 @@
+/* Copyright (c) 2017 Iikka Hauhio
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+{
+	import "calculator.röd", dir=SOURCE_DIR
+}
+
+main model, threshold_str {
+	threshold := parseFloating(threshold_str)
+	calculator := new Calculator(model)
+	calculator.start
+	
+	split | orderedUniq | sum fst=[] | pull words
+	
+	important_words := []
+	importance := new map
+	
+	print `graph G {`
+	
+	seq 1, #words <> words | for i, a do
+		break if [ i = #words ]
+		seq i+1, #words <> words[i:] | for j, b do
+			calculator.distance a, b | pull cosine, euclid
+			if [ cosine > threshold ] do
+				important_words += i, j
+				importance[i] = 0 unless [ importance[i]? ]
+				importance[j] = 0 unless [ importance[j]? ]
+				importance[i] += 1
+				importance[j] += 1
+				/*print `  word_$i -- word_$j [label="${quote(a)}/${quote(b)}\n0.${round(cosine*100)} ($euclid)"];`*/
+				print `  word_$i -- word_$j [xlabel="0.${round(cosine*100)}",penwidth=${0.5+round(100*(cosine-0.8))*(1-threshold)}];`
+			done
+		done
+	done
+	
+	important_words | orderedUniq | print `  word_$i [label="${quote(words[i-1])}",fontsize=${14+importance[i]*2}];` for i
+	
+	print `}`
+	
+	calculator.stop
+}
