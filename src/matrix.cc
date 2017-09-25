@@ -12,6 +12,7 @@
 #include <assert.h>
 
 #include <random>
+#include <cmath>
 
 #include "utils.h"
 #include "vector.h"
@@ -74,6 +75,18 @@ real Matrix::dotRow(const Vector& vec, int64_t i) const {
     d += at(i, j) * vec.data_[j];
   }
   return d;
+}
+
+real Matrix::euclidRow(const Vector& vec, int64_t i) const {
+  assert(i >= 0);
+  assert(i < m_);
+  assert(vec.size() == n_);
+  real d = 0.0;
+  for (int64_t j = 0; j < n_; j++) {
+    const real r = at(i, j) - vec.data_[j];
+    d += r*r;
+  }
+  return std::sqrt(d);
 }
 
 void Matrix::addRow(const Vector& vec, int64_t i, real a) {

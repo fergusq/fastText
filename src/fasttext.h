@@ -81,9 +81,11 @@ class FastText {
     void printSentenceVectors();
     void precomputeWordVectors(Matrix&);
     void findNN(const Matrix&, const Vector&, int32_t,
-                const std::set<std::string>&);
+                const std::set<std::string>&, bool, bool);
     void nn(int32_t);
     void analogies(int32_t);
+    void calculator(bool);
+    void showDistance(std::string, std::string);
     void trainThread(int32_t);
     void train(std::shared_ptr<Args>);
 

@@ -441,14 +441,14 @@ void FastText::precomputeWordVectors(Matrix& wordVectors) {
     getVector(vec, word);
     real norm = vec.norm();
     if (norm > 0) {
-      wordVectors.addRow(vec, i, 1.0 / norm);
+      wordVectors.addRow(vec, i, 1.0);
     }
   }
   std::cerr << " done." << std::endl;
 }
 
 void FastText::findNN(const Matrix& wordVectors, const Vector& queryVec,
-                      int32_t k, const std::set<std::string>& banSet) {
+                      int32_t k, const std::set<std::string>& banSet, bool euclid, bool endmark) {
   real queryNorm = queryVec.norm();
   if (std::abs(queryNorm) < 1e-8) {
     queryNorm = 1;
@@ -457,17 +457,29 @@ void FastText::findNN(const Matrix& wordVectors, const Vector& queryVec,
   Vector vec(args_->dim);
   for (int32_t i = 0; i < dict_->nwords(); i++) {
     std::string word = dict_->getWord(i);
-    real dp = wordVectors.dotRow(queryVec, i);
-    heap.push(std::make_pair(dp / queryNorm, word));
+    if (euclid) {
+      real dis = wordVectors.euclidRow(queryVec, i);
+      heap.push(std::make_pair(-dis, word));
+    } else {
+      real dp = wordVectors.dotRow(queryVec, i);
+      heap.push(std::make_pair(dp / queryNorm / wordVectors.l2NormRow(i), word));
+    }
   }
   int32_t i = 0;
+  int8_t s = euclid ? -1 : 1;
   while (i < k && heap.size() > 0) {
     auto it = banSet.find(heap.top().second);
     if (it == banSet.end()) {
-      std::cout << heap.top().second << " " << heap.top().first << std::endl;
+      std::cout << heap.top().second << " " << s*heap.top().first << std::endl;
       i++;
     }
+    else if (!endmark) {
+      std::cout << "(" << heap.top().second << " " << s*heap.top().first << ")" << std::endl;
+    }
     heap.pop();
+  }
+  if (endmark) {
+    std::cout << "END" << std::endl;
   }
 }
 
@@ -482,7 +494,7 @@ void FastText::nn(int32_t k) {
     banSet.clear();
     banSet.insert(queryWord);
     getVector(queryVec, queryWord);
-    findNN(wordVectors, queryVec, k, banSet);
+    findNN(wordVectors, queryVec, k, banSet, false, false);
     std::cout << "Query word? ";
   }
 }
@@ -510,9 +522,109 @@ void FastText::analogies(int32_t k) {
     getVector(buffer, word);
     query.addVector(buffer, 1.0);
 
-    findNN(wordVectors, query, k, banSet);
+    findNN(wordVectors, query, k, banSet, false, false);
     std::cout << "Query triplet (A - B + C)? ";
   }
+}
+
+void FastText::calculator(bool prompt) {
+  int32_t k = 10;
+  std::string word;
+  Vector buffer(args_->dim), query(args_->dim);
+  Matrix wordVectors(dict_->nwords(), args_->dim);
+  precomputeWordVectors(wordVectors);
+  std::set<std::string> banSet;
+  bool euclid, endmark;
+  if (prompt) std::cout << ">> ";
+  while (true) {
+    banSet.clear();
+    query.zero();
+    
+    std::cin >> word;
+    
+    if (word == "/quit") {
+      if (prompt) std::cout << "quit" << std::endl;
+      break;
+    }
+    else if (word == "/set_k") {
+      std::cin >> k;
+      goto mainLoop;
+    }
+    
+    banSet.insert(word);
+    getVector(buffer, word);
+    query.addVector(buffer, 1.0);
+    
+    while (true) {
+      std::cin >> word;
+      if (word == ".") {
+        euclid = endmark = false;
+        break;
+      }
+      else if (word == "?") {
+        euclid = true;
+        endmark = false;
+        break;
+      }
+      if (word == "q.") {
+        euclid = false;
+        endmark = true;
+        break;
+      }
+      else if (word == "q?") {
+        euclid = endmark = true;
+        break;
+      }
+      else if (word == "v" || word == "V") {
+        std::cin >> word;
+        getVector(buffer, word);
+        real dot = query.dot(buffer);
+        std::cout << "Dot product: " << dot << std::endl;
+        std::cout << "Cosine distance: " << dot/query.norm()/buffer.norm() << std::endl;
+        std::cout << "Euclidean distance: " << query.dis(buffer) << std::endl;
+        goto mainLoop;
+      }
+      else if (word == "qv" || word == "qV") {
+        std::cin >> word;
+        getVector(buffer, word);
+        real dot = query.dot(buffer);
+        std::cout << dot/query.norm()/buffer.norm() 
+                  << " " 
+                  << query.dis(buffer) 
+                  << std::endl;
+        goto mainLoop;
+      }
+      else if (word == "+") {
+        std::cin >> word;
+        banSet.insert(word);
+        getVector(buffer, word);
+        query.addVector(buffer, 1.0);
+      }
+      else if (word == "-") {
+        std::cin >> word;
+        banSet.insert(word);
+        getVector(buffer, word);
+        query.addVector(buffer, -1.0);
+      }
+    }
+
+    findNN(wordVectors, query, k, banSet, euclid, endmark);
+    mainLoop:
+    if (prompt) std::cout << ">> ";
+  }
+}
+
+void FastText::showDistance(std::string a, std::string b) {
+  Vector word1(args_->dim), word2(args_->dim);
+  Matrix wordVectors(dict_->nwords(), args_->dim);
+  precomputeWordVectors(wordVectors);
+  getVector(word1, a);
+  getVector(word2, b);
+  real dot = word1.dot(word2);
+  std::cout << dot/word1.norm()/word2.norm()
+            << " "
+            << word1.dis(word2)
+            << std::endl;
 }
 
 void FastText::trainThread(int32_t threadId) {

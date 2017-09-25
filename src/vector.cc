@@ -117,6 +117,23 @@ int64_t Vector::argmax() {
   return argmax;
 }
 
+real Vector::dot(const Vector& v) const {
+  real sum = 0;
+  for (int64_t i = 0; i < m_; i++) {
+    sum += data_[i] * v.data_[i];
+  }
+  return sum;
+}
+
+real Vector::dis(const Vector& v) const {
+  real sum = 0;
+  for (int64_t i = 0; i < m_; i++) {
+    const real r = data_[i] - v.data_[i];
+    sum += r*r;
+  }
+  return std::sqrt(sum);
+}
+
 real& Vector::operator[](int64_t i) {
   return data_[i];
 }

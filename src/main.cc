@@ -29,6 +29,7 @@ void printUsage() {
     << "  print-sentence-vectors  print sentence vectors given a trained model\n"
     << "  nn                      query for nearest neighbors\n"
     << "  analogies               query for analogies\n"
+    << "  calculator              query for nearest neighbors of vector sums\n"
     << std::endl;
 }
 
@@ -104,6 +105,23 @@ void printAnalogiesUsage() {
     << "usage: fasttext analogies <model> <k>\n\n"
     << "  <model>      model filename\n"
     << "  <k>          (optional; 10 by default) predict top k labels\n"
+    << std::endl;
+}
+
+void printCalculatorUsage() {
+  std::cout
+    << "usage: fasttext calculator <model> [--no-prompt]\n\n"
+    << "  <model>      model filename\n"
+    << "  --no-prompt  (optional) disable prompt\n"
+    << std::endl;
+}
+
+void printDistanceUsage() {
+  std::cout
+    << "usage: fasttext distance <model> <word1> <word2>\n\n"
+    << "  <model>      model filename\n"
+    << "  <word1>      the first word\n"
+    << "  <word2>      the second word\n"
     << std::endl;
 }
 
@@ -230,6 +248,35 @@ void analogies(const std::vector<std::string> args) {
   exit(0);
 }
 
+void calculator(const std::vector<std::string> args) {
+  bool prompt;
+  if (args.size() == 3) {
+    prompt = true;
+  } else if (args.size() == 4 && args[3] == "--no-prompt") {
+    prompt = false;
+  } else {
+    printCalculatorUsage();
+    exit(EXIT_FAILURE);
+  }
+  FastText fasttext;
+  fasttext.loadModel(std::string(args[2]));
+  fasttext.calculator(prompt);
+  exit(0);
+}
+
+void distance(const std::vector<std::string> args) {
+  int32_t k;
+  if (args.size() != 5) {
+    printDistanceUsage();
+    exit(EXIT_FAILURE);
+  }
+  FastText fasttext;
+  fasttext.loadModel(std::string(args[2]));
+  fasttext.showDistance(std::string(args[3]), std::string(args[4]));
+  exit(0);
+}
+
+
 void train(const std::vector<std::string> args) {
   std::shared_ptr<Args> a = std::make_shared<Args>();
   a->parseArgs(args);
@@ -260,6 +307,10 @@ int main(int argc, char** argv) {
     nn(args);
   } else if (command == "analogies") {
     analogies(args);
+  } else if (command == "calculator") {
+    calculator(args);
+  } else if (command == "distance") {
+    distance(args);
   } else if (command == "predict" || command == "predict-prob" ) {
     predict(args);
   } else {

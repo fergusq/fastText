@@ -44,6 +44,8 @@ class Vector {
     void mul(const QMatrix&, const Vector&);
     void mul(const Matrix&, const Vector&);
     int64_t argmax();
+    real dot(const Vector&) const;
+    real dis(const Vector&) const;
 };
 
 std::ostream& operator<<(std::ostream&, const Vector&);
